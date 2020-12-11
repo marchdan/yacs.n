@@ -1,171 +1,174 @@
 <template>
-  <div id='header'>
-    <b-navbar type="light" variant="light">
-        <b-navbar-brand class="logo"  href="#">YACS</b-navbar-brand>
-        <div class="semester"> {{currentSemester}} </div>
-        <b-navbar-nav class="ml-auto" v-if="sessionID!==null">
-          <b-nav-item-dropdown right>
-            <!-- Using 'button-content' slot -->
-            <template v-slot:button-content>
-              {{ sessionID }}
-            </template>
-            <b-dropdown-item href="#">Profile</b-dropdown-item>
-            <b-dropdown-item @click="logOut">Sign Out</b-dropdown-item>
-          </b-nav-item-dropdown>
-
-        </b-navbar-nav>
-        <b-navbar-nav class="ml-auto" v-if="sessionID===null">
+  <b-navbar
+    id="header"
+    class="bg-white"
+    style="margin-bottom: 0 !important;"
+    toggleable="md"
+    type="primary"
+    variant="light"
+  >
+    <b-navbar-brand
+      class="align-middle text-dark"
+      :to="{ name: 'CourseScheduler' }"
+    >
+      YACS
+    </b-navbar-brand>
+    <b-nav-text class="text-secondary">{{ selectedSemester }}</b-nav-text>
+    <b-navbar-toggle
+      id="header-navbar-collapse-toggle"
+      target="header-navbar-collapse"
+    >
+      <font-awesome-icon icon="bars" />
+    </b-navbar-toggle>
+    <b-collapse id="header-navbar-collapse" is-nav>
+      <b-navbar-nav>
+        <b-nav-item :to="{ name: 'CourseScheduler' }">
+          <font-awesome-icon icon="calendar" />
+          Schedule
+        </b-nav-item>
+        <b-nav-item :to="{ name: 'CourseExplorer' }">
+          <font-awesome-icon icon="list" />
+          Explore
+        </b-nav-item>
+      </b-navbar-nav>
+      <!-- If user has logged in -->
+      <b-navbar-nav class="ml-auto">
+        <b-nav-form id="darkmode-toggle-form" class="mr-md-2">
+          <b-form-checkbox
+            :checked="$store.state.darkMode"
+            @change="toggle_style()"
+            switch
+          >
             <div>
-            <b-button v-b-modal.modal-1 size="sm" variant="light">Log In</b-button>
-
-            <b-modal id="modal-1" ref="modal-1" hide-footer title="Log In">
-                <div>
-                    <b-form @submit="onSubmit" @reset="onReset" v-if="show">
-                    <b-form-group
-                        id="input-group-1"
-                        label="Email address:"
-                        label-for="input-1"
-                        description="We'll never share your email with anyone else."
-                    >
-                        <b-form-input
-                        id="input-1"
-                        v-model="form.email"
-                        type="email"
-                        required
-                        placeholder="Enter email"
-                        ></b-form-input>
-                    </b-form-group>
-
-                    <b-form-group id="input-group-2" label="Password:" label-for="input-2">
-                        <b-form-input
-                        id="input-2"
-                        type="password"
-                        v-model="form.password"
-                        required
-                        placeholder="Enter password"
-                        ></b-form-input>
-                    </b-form-group>
-
-                    <b-button type="submit" variant="primary">Submit</b-button>
-                    <b-button type="reset" variant="danger">Reset</b-button>
-                    </b-form>
-
-                    <!-- <b-card class="mt-3" header="Form Data Result">
-                    <pre class="m-0">{{ form }}</pre>
-                    </b-card> -->
-
-                </div>
-
-                <!-- <b-button class="mt-2"  block @click="toggleModal">Toggle Me</b-button> -->
-            </b-modal>
+              <!-- We need the outer div to keep the icon aligned with the checkbox -->
+              <font-awesome-icon icon="moon" />
             </div>
-        </b-navbar-nav>
+          </b-form-checkbox>
+        </b-nav-form>
 
-      </b-navbar>
-      <hr>
-    </div>
+        <b-nav-item-dropdown right v-if="sessionID !== null">
+          <!-- Using 'button-content' slot -->
+          <template v-slot:button-content>Hi, {{ userName }}</template>
+          <b-dropdown-item @click="logOut">Sign Out</b-dropdown-item>
+        </b-nav-item-dropdown>
+
+        <!-- If user has not logged in -->
+        <template v-else>
+          <b-button
+            id="login-button"
+            v-b-modal.login-modal
+            size="sm"
+            variant="secondary"
+            class="mr-md-2"
+          >
+            Log In
+          </b-button>
+
+          <b-button
+            id="signup-button"
+            v-b-modal.signup-modal
+            size="sm"
+            variant="primary"
+          >
+            Sign Up
+          </b-button>
+
+          <b-modal
+            id="login-modal"
+            ref="login-modal"
+            hide-footer
+            title="Log In"
+          >
+            <LoginForm @submit="onLogIn()" />
+          </b-modal>
+
+          <b-modal id="signup-modal" hide-footer title="Sign Up">
+            <SignUpForm />
+          </b-modal>
+        </template>
+      </b-navbar-nav>
+    </b-collapse>
+  </b-navbar>
 </template>
 
 <script>
+import { logout } from "@/services/UserService";
 
-import { getDefaultSemester } from '@/services/AdminService';
+import SignUpComponent from "@/components/SignUp";
+import LoginComponent from "@/components/Login";
 
-import { login } from '@/services/UserService';
+import { TOGGLE_DARK_MODE } from "@/store";
 
 export default {
-    name: 'Header',
-    props: {
-      currentSemester: String
-    },
-    data() {
-      return {
-        form: {
-          email: '',
-          password: '',
-        },
-        isLoggedIn: false,
-        sessionID: '',
-        show: true,
-        semesterOptions: [],
-      }
-    },
-    created(){
-      if(this.$route.query.semester){
-        this.currentSemester = this.$route.query.semester;
-      }
-      else{
-        getDefaultSemester().then(semester => {
-          this.currentSemester = semester;
-        });
-      }
-      this.sessionID = this.$cookies.get("sessionID");
-      if (this.sessionID == '') {
-        console.log('not logged in');
-      } else {
-        console.log('sessionID', this.sessionID);
-      }
-    },
-    methods: {
-      toggleModal() {
-        // We pass the ID of the button that we want to return focus to
-        // when the modal has hidden
-        this.$refs['modal-1'].hide()
-      },
-      onSubmit(evt) {
-        evt.preventDefault()
-        let userInfo = this.form;
-        console.log(userInfo);
+  name: "Header",
+  props: {
+    selectedSemester: String,
+  },
+  components: {
+    SignUpForm: SignUpComponent,
+    LoginForm: LoginComponent,
+  },
+  data() {
+    return {
+      isLoggedIn: false,
+      sessionID: "",
+      userName: "",
+      semesterOptions: [],
+    };
+  },
+  created() {
+    this.sessionID = this.$cookies.get("sessionID");
+    this.userName = this.$cookies.get("userName");
 
-        login(userInfo)
-        .then(response => {
-          console.log(response);
-          this.$cookies.set("sessionID", response.data.content['sessionID']);
-          location.reload();
-        })
-        .catch(error => {
-          console.log(error.response);
-        });
-        this.toggleModal();
-      },
-      onReset(evt) {
-        evt.preventDefault()
-        // Reset our form values
-        this.form.email = 'aaa1@wa.com'
-        this.form.password = '123456'
-        // Trick to reset/clear native browser form validation state
-        this.show = false
-        this.$nextTick(() => {
-          this.show = true
-        })
-      },
-      logOut(){
-        this.$cookies.remove("sessionID");
-        location.reload();
-      }
-
+    if (this.sessionID == "") {
+      console.log("not logged in");
+    } else {
+      console.log("sessionID", this.sessionID);
     }
-}
+  },
+  methods: {
+    toggle_style() {
+      this.$store.commit(TOGGLE_DARK_MODE);
+    },
+    onLogIn() {
+      this.$refs["login-modal"].hide();
+    },
+    logOut() {
+      var sessionId = this.$cookies.get("sessionID");
+      logout(sessionId).then(() => {
+        this.$cookies.remove("sessionID");
+        this.$cookies.remove("userID");
+        location.reload();
+      });
+    },
+  },
+};
 </script>
 
-<style>
-.navbar {
-  background: white !important;
-  margin-bottom: none !important;
+<style lang="scss" scoped>
+@include media-breakpoint-down(sm) {
+  #login-button,
+  #signup-button,
+  #darkmode-toggle-form {
+    // equivalent to mb-1
+    margin-bottom: $spacer * 0.25;
+    margin-top: $spacer * 0.25;
+  }
 }
 
-.semester{
-  font-size: 18px;
-  color: grey;
+#header {
+  .nav-item {
+    text-align: center;
+  }
+  // centering of the dark mode toggle
+  .inline-form,
+  .form-inline {
+    justify-content: center;
+  }
 }
 
-.logo{
-  font-size: 24px;
-  vertical-align: middle;
+// no idea why but need to manually set this for it to show up
+.dark #header-navbar-collapse-toggle {
+  color: var(--dark-text-primary) !important;
 }
-
-hr {
-  margin: 0em;
-  border-width: 1px;
-}
-
 </style>

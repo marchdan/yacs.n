@@ -1,117 +1,155 @@
 <template>
-  <div id='footer'>
-    <hr>
-    <section id='main-block'>
+  <div id="footer">
+    <section id="main-block">
       <b-container>
-        <b-row>
-          <b-col>
-            <!-- TODO: Autogenerate these when doing the user side, semester select -->
+        <b-row cols="2" cols-md="3" align-h="center">
+          <b-col class="link-group">
             <strong class="section-head">Other Semesters</strong>
-            <a class="link" id="current">
-              {{ currentSemester }}
-            </a>
-            <a 
-              v-for="semester in otherSemesters"
-              :key="semester.text"
-              :value="semester.value"
-              :href="`/?semester=${semester.text}`"
+            <a
+              v-for="option of otherSemesters"
+              :key="option.text"
               class="link"
-              > {{semester.value}}
+              :disabled="option.text === selectedSemester"
+              @click="updateSelectedSemester(option.text)"
+            >
+              {{ option.value }}
             </a>
           </b-col>
 
-          <b-col>
+          <b-col class="link-group">
             <strong class="section-head">Contact Us</strong>
-            <a class="link" href="https://github.com/YACS-RCOS/yacs.n"  target="_blank" >Contribute (GitHub)</a>
-            <a class="link" href="https://github.com/YACS-RCOS/yacs.n/issues/new?assignees=&labels=Feature+Request&template=feature-request.md&title=Feature+Request+—+Make+YACS+Great" target="_blank" >Request a Feature</a>
-            <a class="link" href= "https://github.com/YACS-RCOS/yacs.n/issues/new?assignees=&labels=bug&template=bug_report.md&title=Bug+—+Someone+made+an+oopsie" target="_blank" >Report a Bug</a>
+            <a
+              class="link"
+              href="https://github.com/YACS-RCOS/yacs.n"
+              target="_blank"
+              rel="noopener"
+            >
+              Contribute (GitHub)
+            </a>
+            <a
+              class="link"
+              href="https://github.com/YACS-RCOS/yacs.n/issues/new?assignees=&labels=Feature+Request&template=feature-request.md&title=Feature+Request+—+Make+YACS+Great"
+              target="_blank"
+              rel="noopener"
+            >
+              Request a Feature
+            </a>
+            <a
+              class="link"
+              href="https://github.com/YACS-RCOS/yacs.n/issues/new?assignees=&labels=bug&template=bug_report.md&title=Bug+—+Someone+made+an+oopsie"
+              target="_blank"
+              rel="noopener"
+            >
+              Report a Bug
+            </a>
           </b-col>
 
-          <b-col>
+          <b-col class="link-group">
             <strong class="section-head">Legal Stuff</strong>
-            <a class="link" href="http://opensource-template.wikidot.com/legal:terms-of-use" target="_blank">Terms of Use</a>
-            <!-- <a class="link" href=#>Cookies</a> -->
+            <a
+              class="link"
+              href="http://opensource-template.wikidot.com/legal:terms-of-use"
+              target="_blank"
+              rel="noopener"
+            >
+              Terms of Use
+            </a>
+            <a
+              class="link"
+              href="http://opensource-template.wikidot.com/legal:privacy-policy"
+              target="_blank"
+              rel="noopener"
+            >
+              Cookie Policy
+            </a>
           </b-col>
-
+          <!-- This column is used for alignment in mobile -->
+          <b-col class="d-block d-sm-none"></b-col>
         </b-row>
       </b-container>
     </section>
-    <!-- <hr> -->
-    <section id='credits'>
-      <p class='text-center'>Built by YACS under RCOS at RPI</p>
+    <section id="credits" class="text-center">
+      Built by YACS under RCOS at RPI
     </section>
-
   </div>
 </template>
 
 <script>
-
-import { getSemesters } from '@/services/YacsService';
-
-import { getDefaultSemester }  from '@/services/AdminService';
+import { getSemesters } from "@/services/YacsService";
 
 export default {
-    name: 'Footer',
-    data() {
-      return {
-        semesterOptions: [],
-        currentSemester: ''
-      }
+  name: "Footer",
+  props: {
+    selectedSemester: String,
+  },
+  data() {
+    return {
+      semesterOptions: [],
+    };
+  },
+  methods: {
+    updateSelectedSemester(newSemester) {
+      this.$emit("changeSelectedSemester", newSemester);
     },
-    methods: {
+  },
+  computed: {
+    otherSemesters() {
+      return this.semesterOptions.filter(
+        (semester) => semester.text != this.semester
+      );
     },
-    created () {
-      if(this.$route.query.semester){
-        this.currentSemester = this.$route.query.semester;
-      }
-      else{
-        getDefaultSemester().then(semester => {
-          this.currentSemester = semester;
-        });
-      }
-      getSemesters().then(data  => {
-        this.semesterOptions.push(...data.map(s => ({text: s.semester, value: s.semester})));
-        });
-    },
-    computed: {
-      otherSemesters: function() {
-        var retSemesters = [];
-        for(var item of this.semesterOptions){
-          if(item.value != this.currentSemester){
-            retSemesters.push(item);
-          }
-        }
-        return retSemesters;
-      } 
-    }
-}
+  },
+  created() {
+    getSemesters().then((data) => {
+      this.semesterOptions = data.map((s) => ({
+        text: s.semester,
+        value: s.semester,
+      }));
+    });
+  },
+};
 </script>
 
 <style scoped lang="scss">
-
 #footer {
+  width: 100%;
+  border-top: 1px solid lightgrey;
+
+  .link-group {
+    @include media-breakpoint-up(sm) {
+      flex-grow: 0;
+      flex-basis: 0;
+    }
+
+    white-space: nowrap;
+  }
+
   #main-block {
     background: white;
     color: black;
-    padding: 25px 0;
+    padding-top: 25px;
     width: 100%;
     height: auto;
-    padding-left: 150px;
+    margin: 0px !important;
 
     strong.section-head {
-      color: #3D4959;
+      color: #3d4959;
       margin-bottom: 2px;
+    }
+
+    a.link:hover {
+      text-decoration: underline;
+      cursor: pointer;
     }
 
     a.link {
       color: inherit;
-      display: block;
+      display: table;
     }
 
     a.link#current {
       color: grey;
     }
-
   }
 
   #credits {
@@ -120,14 +158,10 @@ export default {
     height: auto;
     padding: 0px;
     margin: 0px;
+    margin-top: 10px;
     padding: 10px 0px;
-
-    p {
-      color: #3D4959;
-      margin: 0;
-    }
+    font-size: 15px;
+    color: #3d4959;
   }
-
 }
-
 </style>

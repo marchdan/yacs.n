@@ -1,8 +1,17 @@
 <template functional>
-  <div class="schedule-event" :style="data.style">
+  <div class="schedule-event" :style="data.style" data-cy="schedule-event">
     <div class="event-text">
-      {{ props.crn }} - {{ props.section }}
-      <br>
+      <span data-cy="title">{{ props.title }}</span>
+      <br />
+      <span data-cy="name">{{ props.name }}</span>
+      &nbsp;-&nbsp;
+      <span data-cy="section">{{ props.section }}</span>
+      <br />
+      <span data-cy="crn">{{ props.crn }}</span>
+      <br />
+      <!-- location placeholder -->
+      <br />
+      <!-- professor placeholder -->
     </div>
   </div>
 </template>
@@ -25,8 +34,10 @@
   .event-text {
     padding: 4px;
     font-weight: bold;
-    font-size: small;
+    font-size: 60%;
     box-sizing: border-box;
+    height: 100%;
+    overflow-y: auto;
   }
 }
 </style>

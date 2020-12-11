@@ -5,8 +5,10 @@
         <b-form-input
           id="search"
           v-model="textSearch"
+          :debounce="debounceTime"
           trim
           placeholder="Intro to College - COLG 1030"
+          list="list-id"
         ></b-form-input>
       </b-form-group>
 
@@ -14,109 +16,210 @@
         <!-- >2 b/c default ALL option always present -->
         <b-col v-if="subsemesterOptions.length > 2">
           <b-form-group label="Filter Sub-Semester" for="sub-semester">
-            <b-form-select v-model="selectedSubsemester" :options="subsemesterOptions"></b-form-select>
+            <b-form-select
+              v-model="selectedSubsemester"
+              :options="subsemesterOptions"
+            ></b-form-select>
           </b-form-group>
         </b-col>
         <b-col>
           <b-form-group label="Filter Department" for="department">
-            <b-form-select v-model="selectedDepartment" :options="departmentOptions"></b-form-select>
+            <b-form-select
+              v-model="selectedDepartment"
+              :options="departmentOptions"
+            ></b-form-select>
           </b-form-group>
         </b-col>
       </b-row>
     </div>
-
+    <!-- Start of Dynamic Scrolling Rendering To Account For Varying Course Data. > -->
     <hr />
-
-    <b-list-group id="scroll-box" class="mb-2 mb-sm-0 flex-grow-1" flush>
-     <b-list-group-item
-        v-for="course in filteredCourses"
-        :key="course.id"
-        :class="{'bg-light': course.selected}"
+    <div id="scroll-box" data-cy="course-list">
+      <div v-if="filterCourses.length == 0" class="no-courses">
+        Oops, no results!
+      </div>
+      <DynamicScroller
+        class="scroller"
+        :items="filterCourses"
+        :min-item-size="10"
+        typeField="vscrl_type"
       >
-        <CourseListing :course="course" :actions="{add:true}" v-on="$listeners" />
-      </b-list-group-item>
-    </b-list-group>
+        <template v-slot="{ item: course, index, active }">
+          <DynamicScrollerItem
+            :item="course"
+            :active="active"
+            :size-dependencies="[course.title]"
+            :data-index="index"
+            :emitResize="true"
+          >
+            <div
+              class="course-listing"
+              :class="{ 'bg-light': course.selected }"
+            >
+              <CourseListing
+                :course="course"
+                defaultAction="toggleCourse"
+                v-on="$listeners"
+                lazyLoadCollapse
+              >
+                <template #toggleCollapseButton="{ course }">
+                  <button
+                    v-show="
+                      course.corequisites ||
+                      course.prerequisites ||
+                      course.raw_precoreqs
+                    "
+                    class="btn"
+                    @click.stop="courseInfoModalToggle(course)"
+                    data-cy="course-info-button"
+                  >
+                    <font-awesome-icon :icon="faInfoCircle" />
+                  </button>
+                </template>
+                <template #collapseContent>
+                  {{ null }}
+                </template>
+              </CourseListing>
+            </div>
+          </DynamicScrollerItem>
+        </template>
+      </DynamicScroller>
+    </div>
   </div>
 </template>
 
 <script>
-import '@/typedef';
+import "@/typedef";
 
-import { DAY_SHORTNAMES } from '@/utils';
+import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 
-import { getDepartments, getSubSemesters } from '@/services/YacsService';
+import { DAY_SHORTNAMES } from "@/utils";
 
-import { getDefaultSemester } from '@/services/AdminService';
+import { getDepartments, getCourses } from "@/services/YacsService";
 
-import CourseListingComponent from '@/components/CourseListing';
+import CourseListingComponent from "@/components/CourseListing";
+
+import { DynamicScroller, DynamicScrollerItem } from "vue-virtual-scroller";
 
 export default {
-  name: 'CourseList',
+  name: "CourseList",
   components: {
-    CourseListing: CourseListingComponent
+    CourseListing: CourseListingComponent,
+    DynamicScroller,
+    DynamicScrollerItem,
   },
   props: {
     courses: Array,
-    selectedSemester: null
+    subsemesters: Array,
+    selectedSemester: null,
   },
   data() {
     return {
+      faInfoCircle,
       DAY_SHORTNAMES,
-      textSearch: null,
+      textSearch: "",
       selectedSubsemester: null,
-      subsemesterOptions: [{ text: 'All', value: null }],
       selectedDepartment: null,
-      departmentOptions: [{ text: 'All', value: null }]
+      departmentOptions: [{ text: "All", value: null }],
+      courseList: this.courses,
+      debounceTime: 300,
     };
   },
   created() {
-    if(this.$route.query.semester){
-      this.selectedSemester = this.$route.query.semester;
-    }
-    else{
-      getDefaultSemester().then(semester => {
-        this.selectedSemester = semester;
-      });
-    }
-    getDepartments().then(departments => {
-      this.departmentOptions.push(...departments.map(d => d.department));
-    });
-    getSubSemesters().then(subsemesters => {
-      this.subsemesterOptions.push(
-        ...subsemesters.filter(subsemester => subsemester.semester_name === this.selectedSemester)
-        .map(subsemester => {
-          return { text: subsemester.display_string, value: subsemester };
-        }))
+    getDepartments().then((departments) => {
+      this.departmentOptions.push(...departments.map((d) => d.department));
     });
   },
+  methods: {
+    courseInfoModalToggle(course) {
+      this.$emit("showCourseInfo", course);
+    },
+    /* wrapper for querying with search */
+    updateCourseList() {
+      getCourses(this.selectedSemester, this.textSearch, false).then(
+        (course_list) => {
+          this.courseList = course_list;
+        }
+      );
+    },
+  },
+  watch: {
+    /* This value gets debounced */
+    textSearch: function () {
+      this.updateCourseList();
+    },
+  },
   computed: {
-    /**
-     * Returns a list of courses that match the selected filters
-     * @returns {Course[]}
-     */
-    filteredCourses() {
-      return this.courses.filter(({ date_start, date_end, department, title, semester }) => {
-        return (
-          (!this.selectedSubsemester ||
-            (this.selectedSubsemester.date_start.getTime() === date_start.getTime() &&
-              this.selectedSubsemester.date_end.getTime() === date_end.getTime())) &&
-          (!this.selectedDepartment || this.selectedDepartment === department) &&
-          (!this.textSearch || title.includes(this.textSearch.toUpperCase())) &&
-          (this.selectedSemester ===
-            semester)
-        );
+    subsemesterOptions() {
+      let options = [{ text: "All", value: null }];
+      options.push(
+        ...this.subsemesters.map((subsemester) => {
+          return { text: subsemester.display_string, value: subsemester };
+        })
+      );
+      // Once we get new data for the <select>, v-model will retain its old value.
+      // Need to update this value after receving new data to keep values consistent.
+      // eslint-disable-next-line
+      this.selectedSubsemester = options[0].value;
+      return options;
+    },
+    // returns exact match if possible.
+    // if no exact match exists, returns similar options.
+    filterCourses() {
+      // filter by selected department
+      const filtered = this.courseList.filter(
+        (course) =>
+          !this.selectedDepartment ||
+          course.department === this.selectedDepartment
+      );
+
+      // returns exact match, if not found, then department filtered list
+      const find = filtered.find(
+        (course) =>
+          (course.full_title &&
+            course.full_title.toUpperCase() ===
+              this.textSearch.toUpperCase()) ||
+          course.title.toUpperCase() === this.textSearch.toUpperCase()
+      );
+
+      if (find) return [find];
+      else return filtered;
+    },
+    // return a list of the titles of each course.
+    mapCourseNames() {
+      return this.filterCourses.map((course) => {
+        return course.full_title || course.title;
       });
-    }
-  }
+    },
+  },
 };
 </script>
 
 <style scoped lang="scss">
 #scroll-box {
-  overflow-y: scroll !important;
-  overflow-x: hidden;
+  // overflow-y: scroll !important;
+  // overflow-x: hidden;
+  flex-grow: 1;
   flex-basis: 0px; // allows flex and scroll combo
-                   // flex-grow will set height during runtime
+  // flex-grow will set height during runtime
   min-height: 200px; // fix for when at breakpoint <= md. Height isn't filling for some reason.
+}
+
+.scroller {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+.course-listing {
+  padding: 10px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.no-courses {
+  border-style: solid;
+  border-width: 2px;
+  border-color: rgb(0, 0, 0, 0.05);
+  font-size: 16px;
+  padding: 20px;
 }
 </style>

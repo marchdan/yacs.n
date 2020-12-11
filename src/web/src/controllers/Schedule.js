@@ -1,15 +1,16 @@
-import '@/typedef';
+import "@/typedef";
 
 /**
  * Holds the `CourseSession`s for a weekly schedule
  * Can add/remove course sessions and determine if there is a schedule conflict
  */
 class Schedule {
-  static SCHEDULE_DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr'];
+  static SCHEDULE_DAYS = ["Mo", "Tu", "We", "Th", "Fr"];
   // hours indicate start (inclusive) of one hour block with exclusive end e.g. [8, 9) in ascending order
   static SCHEDULE_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
   static SCHEDULE_DAY_DURATION =
-    Schedule.SCHEDULE_HOURS[Schedule.SCHEDULE_HOURS.length - 1] - Schedule.SCHEDULE_HOURS[0];
+    Schedule.SCHEDULE_HOURS[Schedule.SCHEDULE_HOURS.length - 1] -
+    Schedule.SCHEDULE_HOURS[0];
 
   /**
    * Each sub array contains the `CourseSession`s for the corresponding entry in `SCHEDULE_DAYS`
@@ -20,11 +21,29 @@ class Schedule {
   dailySessions;
 
   /**
+   * Array containing the selected CourseSessions matching data stored in dailySessions
+   * Allowing identification and tracing values to access department and level
+   * by matching the crn from a CourseSession to its CourseSection
+   * @type {Array<CourseSection>}
+   */
+  selectedSections;
+
+  /**
+   * Array containing the selected Courses matching data stored in selectedSections
+   * Allowing identification and tracing values to access course title and professors
+   * by matching the department and level from a CourseSection to its Course
+   * @type {Array<Course>}
+   */
+  selectedCourses;
+
+  /**
    * Create a new `Schedule`
-   * Initializes `dailySessions`
+   * Initializes `dailySessions,' 'selectedSections,' and 'selectedCourses'
    */
   constructor() {
     this.dailySessions = [];
+    this.selectedSections = [];
+    this.selectedCourses = [];
 
     for (let d = 0; d < Schedule.SCHEDULE_DAYS.length; d++) {
       this.dailySessions.push([]);
@@ -48,7 +67,7 @@ class Schedule {
       newCourseSession.time_start === undefined
     ) {
       console.error(`
-        Cannot add courseSession with undefined values 
+        Cannot add courseSession with undefined values
         ${JSON.stringify(newCourseSession)}
       `);
     } else {
@@ -88,14 +107,14 @@ class Schedule {
           // Otherwise there is a schedule conflict
         } else {
           console.error(`
-              Schedule conflict between 
-              ${JSON.stringify(newCourseSession)} 
+              Schedule conflict between
+              ${JSON.stringify(newCourseSession)}
               and ${JSON.stringify(sess)}
           `);
           throw {
-            type: 'Schedule Conflict',
+            type: "Schedule Conflict",
             existingSession: sess,
-            addingSession: newCourseSession
+            addingSession: newCourseSession,
           };
         }
       }
@@ -150,10 +169,17 @@ class Schedule {
     if (!courseSection) {
       console.warn(`Ignoring add null/undefined courseSection`);
     } else if (courseSection.sessions.length === 0) {
-      console.error(`Cannot add courseSection with no sessions ${JSON.stringify(courseSection)}`);
-    } else if (!!sessionIndices && sessionIndices.length != courseSection.sessions.length) {
-      console.warning(`Provided number of checked conflicts ${sessionIndices.length} 
-                            does not match number of sessions ${courseSection.sessions.length}, 
+      console.error(
+        `Cannot add courseSection with no sessions ${JSON.stringify(
+          courseSection
+        )}`
+      );
+    } else if (
+      !!sessionIndices &&
+      sessionIndices.length != courseSection.sessions.length
+    ) {
+      console.warning(`Provided number of checked conflicts ${sessionIndices.length}
+                            does not match number of sessions ${courseSection.sessions.length},
                             ignoring..`);
       sessionIndices = null;
     } else {
@@ -187,7 +213,7 @@ class Schedule {
           additions.push({
             index: sessionIndex,
             day: courseSession.day_of_week,
-            courseSession
+            courseSession,
           });
         }
       });
@@ -217,6 +243,7 @@ class Schedule {
         );
       }
 
+      this.selectedSections.push(courseSection);
       console.log(`Added new courseSection ${JSON.stringify(courseSection)}`);
       return true;
     }
@@ -239,22 +266,51 @@ class Schedule {
         this._removeCourseSession(courseSession);
       }
       courseSection.selected = false;
+
+      var i;
+      for (i = 0; i < this.selectedSections.length; i++) {
+        if (this.selectedSections[i].selected == false) {
+          this.selectedSections.splice(i, 1);
+        }
+      }
     }
   }
 
   /**
-   * Removes all sections of course
+   * Removes all sections of course and the course from tracking
    * @param {Course} course
    */
   removeCourse(course) {
     if (!course) {
       console.warn(`Ignoring remove null/undefined course`);
     } else if (course.sections.length === 0) {
-      console.error(`Cannot remove course with no sections ${JSON.stringify(course)}`);
+      console.error(
+        `Cannot remove course with no sections ${JSON.stringify(course)}`
+      );
     } else {
       for (const section of course.sections) {
         this.removeCourseSection(section);
       }
+
+      var i;
+      for (i = 0; i < this.selectedCourses.length; i++) {
+        if (this.selectedCourses[i].selected == false) {
+          this.selectedCourses.splice(i, 1);
+        }
+      }
+      // console.log(this.selectedCourses.length);
+    }
+  }
+
+  /**
+   * Adds a course selected to internal storage for data retrieval in 'ScheduleEvent'
+   * @param {Course} course
+   */
+  addCourse(course) {
+    if (!course) {
+      console.warn("Ignoring add null/undefined course");
+    } else {
+      this.selectedCourses.push(course);
     }
   }
 }

@@ -2,15 +2,16 @@
 
 ![](https://github.com/YACS-RCOS/yacs.n/workflows/CI/badge.svg)
 [![CodeFactor](https://www.codefactor.io/repository/github/yacs-rcos/yacs.n/badge)](https://www.codefactor.io/repository/github/yacs-rcos/yacs.n)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+[![codecov](https://codecov.io/gh/YACS-RCOS/yacs.n/branch/master/graph/badge.svg)](https://codecov.io/gh/YACS-RCOS/yacs.n)
 
 YACS with support for multi and sub-semesters for any school
-
 
 ## YACS at your school?
 
 Clone the repo and
 
-`docker-compose up -d`
+`scripts/start.sh`
 
 Once up,
 
@@ -36,7 +37,7 @@ run `bash build.sh` to build the schema
 **2. Run**
 
 ```bash
-npm i && FLASK_APP=src/app.py npm start
+npm i && FLASK_APP=src/api/app.py npm start
 ```
 
 You should be able to access @ `localhost:8080`
@@ -45,4 +46,14 @@ You should be able to access @ `localhost:8080`
 
 In `localhost:8080/admin` submit your school's courses by CSV and you're ready to schedule!
 
-For schema see /rpi-data/summer-2020.csv as an example
+For schema see /rpi_data/summer-2020.csv as an example
+
+Alternatively to develop using docker
+
+**Start containers**
+
+`bash scripts/dev-start.sh`
+
+**Stop containers**
+
+`bash scripts/dev-stop.sh`
